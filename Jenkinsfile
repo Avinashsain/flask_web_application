@@ -24,20 +24,21 @@ pipeline {
                 '''
             }
         }
-
         stage('Deploy Flask App') {
             steps {
                 echo "Deploying Flask app..."
                 sh '''
-                    # Kill old Gunicorn process if exists
+                    cd $APP_DIR
+                    git pull origin master
+                    source $VENV_DIR/bin/activate
+                    $VENV_DIR/bin/pip install -r requirements.txt || true
+
+                    # Kill old Flask process
                     pkill -f gunicorn || true
                     sleep 2
 
-                    # Install Gunicorn in venv
-                    $VENV_DIR/bin/pip install gunicorn || true
-
-                    # Start Flask app in background, detached from Jenkins
-                    setsid $VENV_DIR/bin/gunicorn -w 4 -b 0.0.0.0:$FLASK_PORT app:app > app.log 2>&1 < /dev/null &
+                    # Start Flask with Gunicorn detached
+                    nohup $VENV_DIR/bin/gunicorn -w 4 -b 0.0.0.0:$FLASK_PORT app:app > app.log 2>&1 &
                 '''
             }
         }
