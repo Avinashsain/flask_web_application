@@ -2,32 +2,26 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR = "${WORKSPACE}"  // Use Jenkins workspace
+        APP_DIR = "${WORKSPACE}"
     }
 
     stages {
 
         stage('Clone') {
             steps {
-                echo "Cloning repo..."
                 git 'https://github.com/Avinashsain/flask_web_application.git'
             }
         }
 
         stage('Setup Python Environment') {
             steps {
-                echo "Setting up Python virtual environment..."
                 sh '''
                 cd $APP_DIR
 
-                # Install venv if missing
-                sudo apt update
-                sudo apt install -y python3-venv python3-pip
-
-                # Create virtual environment if not exists
+                # Create virtual environment (no sudo)
                 python3 -m venv venv || true
 
-                # Activate virtual environment
+                # Activate venv
                 source venv/bin/activate
 
                 # Upgrade pip
@@ -41,18 +35,17 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo "Deploying Flask app..."
                 sh '''
                 cd $APP_DIR
 
-                # Kill old Flask process if running
+                # Kill old process
                 pkill -f app.py || true
                 sleep 2
 
-                # Activate virtual environment
+                # Activate venv
                 source venv/bin/activate
 
-                # Start Flask app in background on port 4000
+                # Start Flask app in background
                 nohup python3 app.py > app.log 2>&1 &
                 '''
             }
@@ -60,11 +53,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "Deployment Successful 🚀"
-        }
-        failure {
-            echo "Deployment Failed ❌ Check app.log for details"
-        }
+        success { echo "Deployment Successful 🚀" }
+        failure { echo "Deployment Failed ❌ Check app.log for details" }
     }
 }
