@@ -23,6 +23,7 @@ pipeline {
             steps {
                 sh '''
                 pkill -f app.py || true
+                sleep 2
                 nohup venv/bin/python app.py > app.log 2>&1 &
                 '''
             }
