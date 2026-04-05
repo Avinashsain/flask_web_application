@@ -31,17 +31,16 @@ pipeline {
                 sh '''
                     cd $APP_DIR
                     git pull origin master
-                    source $VENV_DIR/bin/activate
-                    $VENV_DIR/bin/pip install -r requirements.txt || true
 
-                    # Kill old Gunicorn process if exists
+                    # Install dependencies directly in venv
+                    $VENV_DIR/bin/pip install -r requirements.txt || true
+                    $VENV_DIR/bin/pip install gunicorn || true
+
+                    # Kill old Gunicorn process
                     pkill -f gunicorn || true
                     sleep 2
 
-                    # Install Gunicorn in venv
-                    $VENV_DIR/bin/pip install gunicorn || true
-
-                    # Start Flask app in background, detached from Jenkins
+                    # Start Flask app
                     setsid $VENV_DIR/bin/gunicorn -w 4 -b 0.0.0.0:$FLASK_PORT app:app > app.log 2>&1 < /dev/null &
                 '''
             }
