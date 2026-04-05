@@ -2,23 +2,25 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR = "${WORKSPACE}"
+        APP_DIR = "${WORKSPACE}"  // Use Jenkins workspace
     }
 
     stages {
 
-        stage('Clone') {
+        stage('Clone Repository') {
             steps {
+                echo "Cloning repo..."
                 git 'https://github.com/Avinashsain/flask_web_application.git'
             }
         }
 
         stage('Setup Python Environment') {
             steps {
+                echo "Creating virtual environment and installing dependencies..."
                 sh '''
                 cd $APP_DIR
 
-                # Create virtual environment (no sudo)
+                # Create venv if it doesn't exist
                 python3 -m venv venv || true
 
                 # Activate venv
@@ -27,25 +29,26 @@ pipeline {
                 # Upgrade pip
                 pip install --upgrade pip
 
-                # Install dependencies
+                # Install requirements inside venv
                 pip install -r requirements.txt
                 '''
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy Flask App') {
             steps {
+                echo "Deploying Flask app..."
                 sh '''
                 cd $APP_DIR
 
-                # Kill old process
+                # Kill old Flask process if exists
                 pkill -f app.py || true
                 sleep 2
 
-                # Activate venv
+                # Activate virtual environment
                 source venv/bin/activate
 
-                # Start Flask app in background
+                # Start Flask app in background (port 4000)
                 nohup python3 app.py > app.log 2>&1 &
                 '''
             }
@@ -53,7 +56,11 @@ pipeline {
     }
 
     post {
-        success { echo "Deployment Successful 🚀" }
-        failure { echo "Deployment Failed ❌ Check app.log for details" }
+        success {
+            echo "Deployment Successful 🚀"
+        }
+        failure {
+            echo "Deployment Failed ❌ Check app.log for details"
+        }
     }
 }
