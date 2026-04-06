@@ -1,58 +1,67 @@
 pipeline {
     agent any
+
     environment {
-        APP_DIR = "${WORKSPACE}"
         VENV_DIR = "${WORKSPACE}/venv"
-        FLASK_PORT = "4000"  // Change port if needed
+        FLASK_PORT = "4000"
     }
 
     stages {
-        stage('Clone Repository') {
+
+        stage('Clean Workspace') {
             steps {
-                echo "Cloning repo..."
+                deleteDir()
+            }
+        }
+
+        stage('Clone Latest Code') {
+            steps {
                 git branch: 'master', url: 'https://github.com/Avinashsain/flask_web_application.git'
             }
         }
 
-        stage('Setup Python Environment') {
+        stage('Verify Latest Code') {
             steps {
-                echo "Setting up virtual environment..."
+                sh 'git log -1'
+            }
+        }
+
+        stage('Setup Environment') {
+            steps {
                 sh '''
-                    python3 -m venv $VENV_DIR || true
+                    python3 -m venv $VENV_DIR
                     $VENV_DIR/bin/pip install --upgrade pip
                     $VENV_DIR/bin/pip install -r requirements.txt
+                    $VENV_DIR/bin/pip install gunicorn
                 '''
             }
         }
 
-        stage('Deploy Flask App') {
+        stage('Deploy App') {
             steps {
-                echo "Deploying Flask app..."
                 sh '''
-                    cd $APP_DIR
-                    git pull origin master
-
-                    # Install dependencies directly in venv
-                    $VENV_DIR/bin/pip install -r requirements.txt || true
-                    $VENV_DIR/bin/pip install gunicorn || true
-
-                    # Kill old Gunicorn process
-                    pkill -f gunicorn || true
+                    echo "Stopping old app..."
+                    pkill -9 -f gunicorn || true
+                    pkill -9 -f app.py || true
                     sleep 2
 
-                    # Start Flask app
-                    setsid $VENV_DIR/bin/gunicorn -w 4 -b 0.0.0.0:$FLASK_PORT app:app > app.log 2>&1 < /dev/null &
+                    echo "Starting new app..."
+                    nohup $VENV_DIR/bin/gunicorn -w 2 -b 0.0.0.0:$FLASK_PORT app:app > app.log 2>&1 &
+
+                    sleep 3
+
+                    echo "Check running process:"
+                    ps aux | grep gunicorn
                 '''
             }
         }
-    }
 
-    post {
-        success {
-            echo "Deployment Successful 🚀 Your app should be live on port $FLASK_PORT"
-        }
-        failure {
-            echo "Deployment Failed ❌ Check app.log for details"
+        stage('Verify App') {
+            steps {
+                sh '''
+                    curl -I http://localhost:$FLASK_PORT || true
+                '''
+            }
         }
     }
 }
