@@ -61,7 +61,7 @@ def create_app():
     return app
 
 
-# Create app instance for Gunicorn
+# Create app instance for Gunicorn before the if __name__ == '__main__' block
 app = create_app()
 
 
