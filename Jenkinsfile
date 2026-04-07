@@ -3,9 +3,7 @@ pipeline {
 
     environment {
         APP_DIR = "/home/ubuntu/flask_web_application"
-        VENV = "${APP_DIR}/venv"
         PORT = "4000"
-
         MONGO_URI = credentials('MONGO_URI')
         SECRET_KEY = credentials('SECRET_KEY')
     }
@@ -15,19 +13,11 @@ pipeline {
         stage('Clone / Update Code') {
             steps {
                 sh '''
-                    echo "📦 Checking directory access..."
-
-                    # Ensure directory exists (only if already permitted)
-                    if [ ! -d "$APP_DIR" ]; then
-                        echo "❌ Directory not accessible. Please fix permissions manually."
-                        exit 1
-                    fi
+                    echo "📦 Updating code..."
 
                     if [ ! -d "$APP_DIR/.git" ]; then
-                        echo "📥 Cloning repo..."
                         git clone https://github.com/Avinashsain/flask_web_application.git $APP_DIR
                     else
-                        echo "🔄 Updating repo..."
                         cd $APP_DIR
                         git reset --hard
                         git pull origin master
@@ -42,9 +32,10 @@ pipeline {
                     cd $APP_DIR
 
                     python3 -m venv venv || true
-                    $VENV/bin/pip install --upgrade pip
-                    $VENV/bin/pip install -r requirements.txt
-                    $VENV/bin/pip install gunicorn
+
+                    ./venv/bin/pip install --upgrade pip
+                    ./venv/bin/pip install -r requirements.txt
+                    ./venv/bin/pip install gunicorn
                 '''
             }
         }
@@ -54,16 +45,13 @@ pipeline {
                 sh '''
                     echo "🛑 Stopping old app..."
                     pkill -9 -f gunicorn || true
-                    pkill -9 -f app.py || true
+
                     sleep 2
 
                     echo "🚀 Starting app..."
                     cd $APP_DIR
 
-                    nohup $VENV/bin/gunicorn \
-                        -w 2 \
-                        -b 0.0.0.0:$PORT \
-                        app:app > app.log 2>&1 &
+                    nohup ./venv/bin/gunicorn -w 2 -b 0.0.0.0:$PORT app:app > app.log 2>&1 &
 
                     sleep 5
 
@@ -92,7 +80,7 @@ pipeline {
             echo "✅ Deployment Successful - Latest code live"
         }
         failure {
-            echo "❌ Deployment Failed - Fix permissions or logs"
+            echo "❌ Deployment Failed - Check logs"
         }
     }
 }
