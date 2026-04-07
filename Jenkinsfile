@@ -2,30 +2,34 @@ pipeline {
     agent any
 
     environment {
-        VENV = "${WORKSPACE}/venv"
+        APP_DIR = "/home/ubuntu/flask_app"
         PORT = "4000"
+        VENV = "${APP_DIR}/venv"
         MONGO_URI = credentials('MONGO_URI')
         SECRET_KEY = credentials('SECRET_KEY')
     }
 
     stages {
 
-        stage('Clean & Clone') {
-            steps {
-                deleteDir()
-                git branch: 'master', url: 'https://github.com/Avinashsain/flask_web_application.git'
-            }
-        }
-
-        stage('Check Latest Code') {
-            steps {
-                sh 'git log -1'
-            }
-        }
-
-        stage('Install') {
+        stage('Clone Latest Code') {
             steps {
                 sh '''
+                    if [ ! -d "$APP_DIR" ]; then
+                        git clone https://github.com/Avinashsain/flask_web_application.git $APP_DIR
+                    fi
+
+                    cd $APP_DIR
+                    git reset --hard
+                    git pull origin master
+                '''
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                    cd $APP_DIR
+
                     python3 -m venv $VENV || true
                     $VENV/bin/pip install --upgrade pip
                     $VENV/bin/pip install -r requirements.txt
@@ -34,24 +38,19 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Restart App') {
             steps {
                 sh '''
-                    echo "Mongo URI: $MONGO_URI"
-                    echo "SECRET KEY: $SECRET_KEY"
-                    echo "Stopping old app..."
-                    pkill -9 -f gunicorn || true
-                    pkill -9 -f app.py || true
-                    sleep 2
+                    echo "Stopping old app safely..."
+                    pkill -f gunicorn || true
+                    sleep 3
 
-                    echo "Starting app..."
-                    cd $WORKSPACE
+                    echo "Starting new app..."
+                    cd $APP_DIR
 
                     nohup $VENV/bin/gunicorn -w 2 -b 0.0.0.0:$PORT app:app > app.log 2>&1 &
-
                     sleep 5
 
-                    echo "Check process:"
                     ps aux | grep gunicorn
                 '''
             }
@@ -60,7 +59,6 @@ pipeline {
         stage('Verify') {
             steps {
                 sh '''
-                    echo "Local test:"
                     curl -I http://localhost:$PORT || true
                 '''
             }
@@ -69,10 +67,10 @@ pipeline {
 
     post {
         success {
-            echo "🚀 Deployment finished"
+            echo "✅ Deployment Successful"
         }
         failure {
-            echo "❌ Failed - check app.log"
+            echo "❌ Deployment Failed"
         }
     }
 }
