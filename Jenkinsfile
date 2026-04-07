@@ -6,6 +6,8 @@ pipeline {
         PORT = "4000"
         MONGO_URI = credentials('MONGO_URI')
         SECRET_KEY = credentials('SECRET_KEY')
+        BRANCH = "master"
+        REPO = "https://github.com/Avinashsain/flask_web_application.git"
     }
 
     stages {
@@ -13,15 +15,32 @@ pipeline {
         stage('Clone / Update Code') {
             steps {
                 sh '''
-                    echo "Updating code flask_web_application..."
+                    echo "📦 Fetching latest code..."
 
                     if [ ! -d "$APP_DIR/.git" ]; then
-                        git clone https://github.com/Avinashsain/flask_web_application.git $APP_DIR
+                        echo "Fresh clone..."
+                        rm -rf $APP_DIR
+                        git clone -b $BRANCH $REPO $APP_DIR
                     else
+                        echo "Updating existing repo..."
                         cd $APP_DIR
-                        git reset --hard
-                        git pull origin master
+                        git fetch --all
+                        git reset --hard origin/$BRANCH
+                        git clean -fd
                     fi
+
+                    echo "Current commit:"
+                    cd $APP_DIR
+                    git log -1
+                '''
+            }
+        }
+
+        stage('Verify Latest Files') {
+            steps {
+                sh '''
+                    echo "Checking templates folder..."
+                    ls -la $APP_DIR/templates || true
                 '''
             }
         }
@@ -30,6 +49,8 @@ pipeline {
             steps {
                 sh '''
                     cd $APP_DIR
+
+                    echo "Setting up virtual environment..."
 
                     if [ ! -d "venv" ]; then
                         python3 -m venv venv
@@ -50,7 +71,7 @@ pipeline {
 
                     sleep 2
 
-                    echo "Starting app..."
+                    echo "Starting new app..."
                     cd $APP_DIR
 
                     nohup ./venv/bin/gunicorn -w 2 -b 0.0.0.0:$PORT app:app > app.log 2>&1 &
@@ -63,19 +84,17 @@ pipeline {
             }
         }
 
-        stage('Verify') {
+        stage('Verify Deployment') {
             steps {
                 sh '''
-                    echo "Testing app..."
+                    echo "Testing app (local)..."
                     curl -f http://localhost:$PORT
+
+                    echo "Testing app (public)..."
                     curl -f http://13.203.223.150:$PORT
 
                     echo "Last logs:"
                     tail -n 20 $APP_DIR/app.log || true
-
-                    echo "Latest commit:"
-                    cd $APP_DIR
-                    git log -1
                 '''
             }
         }
@@ -83,7 +102,7 @@ pipeline {
 
     post {
         success {
-            echo "Deployment Successful - Latest code live"
+            echo "Deployment Successful - Latest code is LIVE"
         }
         failure {
             echo "Deployment Failed - Check logs"
