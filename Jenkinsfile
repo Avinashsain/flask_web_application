@@ -13,7 +13,7 @@ pipeline {
         stage('Clone / Update Code') {
             steps {
                 sh '''
-                    echo "Updating code..."
+                    echo "Updating code flask_web_application..."
 
                     if [ ! -d "$APP_DIR/.git" ]; then
                         git clone https://github.com/Avinashsain/flask_web_application.git $APP_DIR
