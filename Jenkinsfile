@@ -11,16 +11,6 @@ pipeline {
 
     stages {
 
-        stage('Prepare Directory') {
-            steps {
-                sh '''
-                    echo "Creating app directory..."
-                    sudo mkdir -p $APP_DIR
-                    sudo chown -R jenkins:jenkins $APP_DIR
-                '''
-            }
-        }
-
         stage('Clone / Update Code') {
             steps {
                 sh '''
@@ -64,7 +54,6 @@ pipeline {
 
                     sleep 5
 
-                    echo "Running processes:"
                     ps aux | grep gunicorn
                 '''
             }
@@ -73,7 +62,6 @@ pipeline {
         stage('Verify') {
             steps {
                 sh '''
-                    echo "Testing application..."
                     curl -I http://localhost:$PORT || true
                 '''
             }
@@ -85,7 +73,7 @@ pipeline {
             echo "✅ Deployment Successful"
         }
         failure {
-            echo "❌ Deployment Failed - check logs"
+            echo "❌ Deployment Failed"
         }
     }
 }
