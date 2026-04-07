@@ -12,18 +12,17 @@ pipeline {
 
     stages {
 
-        stage('Prepare Directory') {
-            steps {
-                sh '''
-                    echo "📁 Creating app directory..."
-                    mkdir -p $APP_DIR
-                '''
-            }
-        }
-
         stage('Clone / Update Code') {
             steps {
                 sh '''
+                    echo "📦 Checking directory access..."
+
+                    # Ensure directory exists (only if already permitted)
+                    if [ ! -d "$APP_DIR" ]; then
+                        echo "❌ Directory not accessible. Please fix permissions manually."
+                        exit 1
+                    fi
+
                     if [ ! -d "$APP_DIR/.git" ]; then
                         echo "📥 Cloning repo..."
                         git clone https://github.com/Avinashsain/flask_web_application.git $APP_DIR
@@ -93,7 +92,7 @@ pipeline {
             echo "✅ Deployment Successful - Latest code live"
         }
         failure {
-            echo "❌ Deployment Failed - Check logs"
+            echo "❌ Deployment Failed - Fix permissions or logs"
         }
     }
 }
