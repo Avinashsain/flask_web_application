@@ -4,6 +4,8 @@ pipeline {
     environment {
         VENV = "${WORKSPACE}/venv"
         PORT = "4000"
+        MONGO_URI = credentials('MONGO_URI')
+        SECRET_KEY = credentials('SECRET_KEY')
     }
 
     stages {
@@ -35,6 +37,8 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
+                    echo "Mongo URI: $MONGO_URI"
+                    echo "SECRET KEY: $SECRET_KEY"
                     echo "Stopping old app..."
                     pkill -9 -f gunicorn || true
                     pkill -9 -f app.py || true
@@ -58,16 +62,6 @@ pipeline {
                 sh '''
                     echo "Local test:"
                     curl -I http://localhost:$PORT || true
-
-                    echo "Public IP fetch:"
-                    PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "")
-
-                    if [ -z "$PUBLIC_IP" ]; then
-                        echo "Public IP not found ❌"
-                    else
-                        echo "Public IP: $PUBLIC_IP"
-                        curl -I http://$PUBLIC_IP:$PORT || true
-                    fi
                 '''
             }
         }
