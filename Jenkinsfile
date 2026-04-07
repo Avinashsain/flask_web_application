@@ -2,25 +2,37 @@ pipeline {
     agent any
 
     environment {
-        APP_DIR = "/home/ubuntu/flask_app"
-        PORT = "4000"
+        APP_DIR = "/var/lib/jenkins/flask_app"
         VENV = "${APP_DIR}/venv"
+        PORT = "4000"
         MONGO_URI = credentials('MONGO_URI')
         SECRET_KEY = credentials('SECRET_KEY')
     }
 
     stages {
 
-        stage('Clone Latest Code') {
+        stage('Prepare Directory') {
             steps {
                 sh '''
-                    if [ ! -d "$APP_DIR" ]; then
-                        git clone https://github.com/Avinashsain/flask_web_application.git $APP_DIR
-                    fi
+                    echo "Creating app directory..."
+                    sudo mkdir -p $APP_DIR
+                    sudo chown -R jenkins:jenkins $APP_DIR
+                '''
+            }
+        }
 
-                    cd $APP_DIR
-                    git reset --hard
-                    git pull origin master
+        stage('Clone / Update Code') {
+            steps {
+                sh '''
+                    if [ ! -d "$APP_DIR/.git" ]; then
+                        echo "Cloning repo..."
+                        git clone https://github.com/Avinashsain/flask_web_application.git $APP_DIR
+                    else
+                        echo "Updating repo..."
+                        cd $APP_DIR
+                        git reset --hard
+                        git pull origin master
+                    fi
                 '''
             }
         }
@@ -38,19 +50,21 @@ pipeline {
             }
         }
 
-        stage('Restart App') {
+        stage('Deploy App') {
             steps {
                 sh '''
-                    echo "Stopping old app safely..."
+                    echo "Stopping old app..."
                     pkill -f gunicorn || true
                     sleep 3
 
-                    echo "Starting new app..."
+                    echo "Starting app..."
                     cd $APP_DIR
 
                     nohup $VENV/bin/gunicorn -w 2 -b 0.0.0.0:$PORT app:app > app.log 2>&1 &
+
                     sleep 5
 
+                    echo "Running processes:"
                     ps aux | grep gunicorn
                 '''
             }
@@ -59,6 +73,7 @@ pipeline {
         stage('Verify') {
             steps {
                 sh '''
+                    echo "Testing application..."
                     curl -I http://localhost:$PORT || true
                 '''
             }
@@ -70,7 +85,7 @@ pipeline {
             echo "✅ Deployment Successful"
         }
         failure {
-            echo "❌ Deployment Failed"
+            echo "❌ Deployment Failed - check logs"
         }
     }
 }
