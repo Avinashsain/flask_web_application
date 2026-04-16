@@ -102,10 +102,18 @@ pipeline {
 
     post {
         success {
-            echo "Deployment Successful - Latest code is LIVE"
+            emailext (
+                to: 'avinashsain65+1@gmail.com',
+                subject: 'SUCCESS: Build ${BUILD_NUMBER}',
+                body: 'Build succeeded! Check: ${BUILD_URL}'
+            )
         }
         failure {
-            echo "Deployment Failed - Check logs"
+            emailext (
+                to: 'avinashsain65+1@gmail.com',
+                subject: 'FAILED: Build ${BUILD_NUMBER}',
+                body: 'Build failed! Check: ${BUILD_URL}'
+            )
         }
     }
 }
